@@ -9,11 +9,22 @@
 #define NUM_PIXELS 60
 
 // region State
-bool areLedsOn = false;
+enum Effect {
+    Off, SingleColor, Rainbow
+};
+Effect effect = Off;
 // endregion
 
 // region Effects
 Adafruit_NeoPixel leds(NUM_PIXELS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
+
+// region Off
+void off() {
+    leds.clear();
+    leds.show();
+}
+
+// endregion
 // region Rainbow
 uint16_t hue = 0;
 uint16_t hue_step = 10;
@@ -31,9 +42,9 @@ void rainbow() {
 // endregion
 
 // region Single Color
-uint32_t color;
+uint32_t color = Adafruit_NeoPixel::Color(255, 255, 255);
 
-void single_color() {
+void singleColor() {
     for (int i = 0; i < leds.numPixels(); ++i) {
         leds.setPixelColor(i, color);
     }
@@ -44,16 +55,29 @@ void single_color() {
 
 // region HTML
 String constructHtml() {
-    File file = SPIFFS.open("/index.html");
-    String html = "";
+    auto file = SPIFFS.open("/index.html");
+    String html("");
     while (file.available()) {
         html += char(file.read());
     }
     file.close();
-    html.replace("{{led-status}}", areLedsOn ? "ON" : "OFF");
-    html.replace("{{led-status-class}}", areLedsOn ? "off" : "on");
-    html.replace("{{button-direct}}", areLedsOn ? "off" : "on");
-    html.replace("{{button-text}}", areLedsOn ? "Turn Off" : "Turn On");
+    auto offStatus = "off";
+    auto rainbowStatus = "off";
+    auto singleStatus = "off";
+    switch (effect) {
+        case Off:
+            offStatus = "on";
+            break;
+        case Rainbow:
+            rainbowStatus = "on";
+            break;
+        case SingleColor:
+            singleStatus = "on";
+            break;
+    }
+    html.replace("{{rainbow-class}}", rainbowStatus);
+    html.replace("{{white-class}}", singleStatus);
+    html.replace("{{off-class}}", offStatus);
     return html;
 }
 
@@ -61,13 +85,19 @@ void serveSite(AsyncWebServerRequest *request) {
     request->send(200, "text/html", constructHtml());
 }
 
-void handleOn(AsyncWebServerRequest *request) {
-    areLedsOn = true;
+void handleRainbow(AsyncWebServerRequest *request) {
+    effect = Rainbow;
+    request->redirect("/");
+}
+
+void handleWhite(AsyncWebServerRequest *request) {
+    effect = SingleColor;
+    color = Adafruit_NeoPixel::Color(255, 255, 255);
     request->redirect("/");
 }
 
 void handleOff(AsyncWebServerRequest *request) {
-    areLedsOn = false;
+    effect = Off;
     request->redirect("/");
 }
 // endregion
@@ -106,19 +136,27 @@ void setup() {
     server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/favicon.ico", "image/x-icon");
     });
-    server.on("/on", HTTP_GET, handleOn);
     server.on("/off", HTTP_GET, handleOff);
+    server.on("/rainbow", HTTP_GET, handleRainbow);
+    server.on("/white", HTTP_GET, handleWhite);
     server.begin();
 }
 
 #pragma clang diagnostic pop
 
 void loop() {
-    if (areLedsOn) {
-        rainbow();
-    } else {
-        leds.clear();
-        leds.show();
+    switch (effect) {
+        case Off:
+            off();
+            break;
+        case Rainbow:
+            rainbow();
+            break;
+        case SingleColor:
+            singleColor();
+            break;
+        default:
+            break;
     }
 }
 // endregion
