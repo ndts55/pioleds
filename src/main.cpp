@@ -63,12 +63,12 @@ void serveSite(AsyncWebServerRequest *request) {
 
 void handleOn(AsyncWebServerRequest *request) {
     areLedsOn = true;
-    serveSite(request);
+    request->redirect("/");
 }
 
 void handleOff(AsyncWebServerRequest *request) {
     areLedsOn = false;
-    serveSite(request);
+    request->redirect("/");
 }
 // endregion
 
