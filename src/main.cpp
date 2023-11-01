@@ -1,6 +1,6 @@
 #include <Arduino.h>
 #include <Adafruit_NeoPixel.h>
-#include <WebServer.h>
+#include <ESPAsyncWebServer.h>
 #include <WiFi.h>
 #include "credentials.h"
 
@@ -9,7 +9,7 @@
 
 Adafruit_NeoPixel leds(NUM_PIXELS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 bool current_state = false;
-WebServer server(80);
+AsyncWebServer server(80);
 
 // region Effects
 // region Rainbow
@@ -40,7 +40,7 @@ void single_color() {
 // endregion
 // endregion
 
-// HTML
+// region HTML
 String constructHtml(bool ledState) {
     String ptr = "<!DOCTYPE html> <html>\n";
     ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
@@ -72,21 +72,22 @@ String constructHtml(bool ledState) {
     return ptr;
 }
 
-void serveSite() {
-    server.send(200, "text/html", constructHtml(current_state));
+void serveSite(AsyncWebServerRequest *request) {
+    request->send(200, "text/html", constructHtml(current_state));
 }
 
-void handleOn() {
+void handleOn(AsyncWebServerRequest *request) {
     current_state = true;
-    color = Adafruit_NeoPixel::Color(255, 255, 255);
-    serveSite();
+    serveSite(request);
 }
 
-void handleOff() {
+void handleOff(AsyncWebServerRequest *request) {
     current_state = false;
-    serveSite();
+    serveSite(request);
 }
+// endregion
 
+// region Setup and Loop
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
@@ -104,22 +105,21 @@ void setup() {
     Serial.print("Connected!");
     Serial.print("Got IP: ");
     Serial.println(WiFi.localIP());
-    server.on("/", serveSite);
-    server.on("/on", handleOn);
-    server.on("/off", handleOff);
+
+    server.on("/", HTTP_GET, serveSite);
+    server.on("/on", HTTP_GET, handleOn);
+    server.on("/off", HTTP_GET, handleOff);
     server.begin();
 }
 
 #pragma clang diagnostic pop
 
 void loop() {
-    server.handleClient();
-
     if (current_state) {
         rainbow();
-//        single_color();
     } else {
         leds.clear();
         leds.show();
     }
 }
+// endregion
