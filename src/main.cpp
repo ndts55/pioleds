@@ -8,11 +8,12 @@
 #define PIN_LEDS 16
 #define NUM_PIXELS 60
 
-Adafruit_NeoPixel leds(NUM_PIXELS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
-bool current_state = false;
-AsyncWebServer server(80);
+// region State
+bool areLedsOn = false;
+// endregion
 
 // region Effects
+Adafruit_NeoPixel leds(NUM_PIXELS, PIN_LEDS, NEO_GRB + NEO_KHZ800);
 // region Rainbow
 uint16_t hue = 0;
 uint16_t hue_step = 10;
@@ -42,40 +43,31 @@ void single_color() {
 // endregion
 
 // region HTML
-String constructHtml(bool ledState) {
-    String ptr = "<!DOCTYPE html> <html>\n";
-    ptr += "<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
-    ptr += "<title>LED Control</title>\n";
-    ptr += R"(<link rel="stylesheet" type="text/css" href="/style.css">)";
-    ptr += "</head>\n";
-    ptr += "<body>\n";
-    ptr += "<h1>ESP32 Web Server</h1>\n";
-    if (ledState) {
-        ptr += "<p>LED: ON</p><a class=\"button button-off\" href=\"/off\">OFF</a>\n";
-    } else {
-        ptr += "<p>LED: OFF</p><a class=\"button button-on\" href=\"/on\">ON</a>\n";
+String constructHtml() {
+    File file = SPIFFS.open("/index.html");
+    String html = "";
+    while (file.available()) {
+        html += char(file.read());
     }
-    if (leds.numPixels() == 0) {
-        ptr += "<p> NO PIXELS </p>";
-    }
-
-    ptr += "</body>\n";
-    ptr += "</html>\n";
-
-    return ptr;
+    file.close();
+    html.replace("{{led-status}}", areLedsOn ? "ON" : "OFF");
+    html.replace("{{led-status-class}}", areLedsOn ? "off" : "on");
+    html.replace("{{button-direct}}", areLedsOn ? "off" : "on");
+    html.replace("{{button-text}}", areLedsOn ? "Turn Off" : "Turn On");
+    return html;
 }
 
 void serveSite(AsyncWebServerRequest *request) {
-    request->send(200, "text/html", constructHtml(current_state));
+    request->send(200, "text/html", constructHtml());
 }
 
 void handleOn(AsyncWebServerRequest *request) {
-    current_state = true;
+    areLedsOn = true;
     serveSite(request);
 }
 
 void handleOff(AsyncWebServerRequest *request) {
-    current_state = false;
+    areLedsOn = false;
     serveSite(request);
 }
 // endregion
@@ -84,9 +76,13 @@ void handleOff(AsyncWebServerRequest *request) {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
+AsyncWebServer server(80);
+
 void setup() {
     leds.begin();
+
     SPIFFS.begin(true);
+
     Serial.begin(115200);
     Serial.print("Connecting to...");
     Serial.print(ssid);
@@ -107,6 +103,9 @@ void setup() {
     server.on("/index", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/index.html", "text/html");
     });
+    server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/favicon.ico", "image/x-icon");
+    });
     server.on("/on", HTTP_GET, handleOn);
     server.on("/off", HTTP_GET, handleOff);
     server.begin();
@@ -115,7 +114,7 @@ void setup() {
 #pragma clang diagnostic pop
 
 void loop() {
-    if (current_state) {
+    if (areLedsOn) {
         rainbow();
     } else {
         leds.clear();

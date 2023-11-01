@@ -1,10 +1,12 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Title</title>
+    <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PioLeds</title>
+    <link rel="stylesheet" type="text/css" href="/style.css">
 </head>
 <body>
-TEST
+<h1>ESP32 Web Server</h1>
+<p>LED: {{led-status}}</p><a class="button button-{{led-status-class}}" href="/{{button-direct}}">{{button-text}}</a>
 </body>
 </html>
