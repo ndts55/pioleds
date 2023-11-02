@@ -2,13 +2,40 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PioLeds</title>
-    <link rel="stylesheet" type="text/css" href="/style.css">
+    <title>LED Control</title>
+    <link rel="stylesheet" type="text/css" href="./normalize.css">
+    <link rel="stylesheet" type="text/css" href="./skeleton.css">
+    <link rel="stylesheet" type="text/css" href="./style.css">
 </head>
 <body>
-<h1>ESP32 Web Server</h1>
-<a class="button button-{{rainbow-class}}" href="/rainbow">Rainbow</a>
-<a class="button button-{{white-class}}" href="/white">White</a>
-<a class="button button-{{off-class}}" href="/off">Off</a>
+
+<div class="container">
+    <div class="row">
+        <div class="one-half column">
+            <button type="button" class="u-full-width" onclick="onRainbowClick()">Rainbow</button>
+        </div>
+        <div class="one-half column">
+            <input id="rainbow-speed-slider" class="u-full-width" type="range" min="1" max="100" value="50"
+                   oninput="onRainbowClick()">
+        </div>
+        <label for="rainbow-speed-slider"></label>
+    </div>
+    <div class="row">
+        <div class="one-half column">
+            <button type="button" class="u-full-width" onclick="onColorClick()">Color</button>
+        </div>
+        <div class="one-half column">
+            <input type="color" class="u-full-width" id="color-selector" name="head" value="#ffffff"
+                   oninput="onColorClick()"/>
+        </div>
+        <label for="color-selector"></label>
+    </div>
+    <div class="row">
+        <div class="twelve columns">
+            <button type="button" class="u-full-width" id="off-button" onclick="onOffClick()">Off</button>
+        </div>
+    </div>
+</div>
+<script type="text/javascript" src="./script.js"></script>
 </body>
 </html>

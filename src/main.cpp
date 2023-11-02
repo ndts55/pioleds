@@ -30,6 +30,7 @@ uint16_t hue = 0;
 uint16_t hue_step = 10;
 uint32_t rainbow_delay = 5;
 
+// TODO add variable update speed for rainbow effect
 void rainbow() {
     uint32_t color = Adafruit_NeoPixel::ColorHSV(hue, UINT8_MAX, UINT8_MAX);
     for (int i = 0; i < leds.numPixels(); ++i) {
@@ -85,20 +86,33 @@ void serveSite(AsyncWebServerRequest *request) {
     request->send(200, "text/html", constructHtml());
 }
 
-void handleRainbow(AsyncWebServerRequest *request) {
-    effect = Rainbow;
-    request->redirect("/");
+void handleGetRainbow(AsyncWebServerRequest *request) {
+    // TODO return current rainbow speed
 }
 
-void handleWhite(AsyncWebServerRequest *request) {
-    effect = SingleColor;
-    color = Adafruit_NeoPixel::Color(255, 255, 255);
+void handlePostRainbow(AsyncWebServerRequest *request) {
+    effect = Rainbow;
     request->redirect("/");
 }
 
 void handleOff(AsyncWebServerRequest *request) {
     effect = Off;
     request->redirect("/");
+}
+
+void handleGetColor(AsyncWebServerRequest *request) {
+    // TODO return current color
+}
+
+void handlePostColor(AsyncWebServerRequest *request) {
+    // TODO set current color from payload
+    effect = SingleColor;
+    color = Adafruit_NeoPixel::Color(255, 255, 255);
+    request->redirect("/");
+}
+
+void handleGetState(AsyncWebServerRequest *request) {
+    // TODO return the current state information as JSON
 }
 // endregion
 
@@ -127,6 +141,12 @@ void setup() {
     Serial.println(WiFi.localIP());
 
     server.on("/", HTTP_GET, serveSite);
+    server.on("/normalize.css", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/normalize.css", "text/css");
+    });
+    server.on("/skeleton.css", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/skeleton.css", "text/css");
+    });
     server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/style.css", "text/css");
     });
@@ -136,9 +156,12 @@ void setup() {
     server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/favicon.ico", "image/x-icon");
     });
-    server.on("/off", HTTP_GET, handleOff);
-    server.on("/rainbow", HTTP_GET, handleRainbow);
-    server.on("/white", HTTP_GET, handleWhite);
+    server.on("/off", HTTP_POST, handleOff);
+    server.on("/rainbow", HTTP_GET, handleGetRainbow);
+    server.on("/rainbow", HTTP_POST, handlePostRainbow);
+    server.on("/color", HTTP_GET, handleGetColor);
+    server.on("/color", HTTP_POST, handlePostColor);
+    server.on("/state", HTTP_GET, handleGetState);
     server.begin();
 }
 
