@@ -14,6 +14,19 @@ enum Effect {
     Off, SingleColor, Rainbow
 };
 Effect effect = Off;
+
+String effectToString(Effect e) {
+    switch (e) {
+        case Off:
+            return "off";
+        case SingleColor:
+            return "single-color";
+        case Rainbow:
+            return "rainbow";
+        default:
+            return "";
+    }
+}
 // endregion
 
 // region Effects
@@ -44,64 +57,108 @@ void rainbow() {
 // endregion
 
 // region Single Color
-uint32_t color = Adafruit_NeoPixel::Color(255, 255, 255);
+uint8_t red = 255;
+uint8_t green = 255;
+uint8_t blue = 255;
 
 void singleColor() {
     for (int i = 0; i < leds.numPixels(); ++i) {
-        leds.setPixelColor(i, color);
+        leds.setPixelColor(i, red, green, blue);
     }
     leds.show();
 }
 // endregion
 // endregion
 
-// region HTML
-String indexHtml("");
-
-void serveSite(AsyncWebServerRequest *request) {
-    request->send(200, "text/html", indexHtml);
+// region Backend
+void onJsonBody(
+        AsyncWebServerRequest *request,
+        uint8_t *bodyData,
+        size_t bodyLen,
+        size_t index,
+        size_t total) {
+    if (total > 0 && request->_tempObject == nullptr) {
+        request->_tempObject = malloc(total);
+    }
+    if (request->_tempObject != nullptr) {
+        memcpy((uint8_t *) (request->_tempObject) + index, bodyData, bodyLen);
+    }
 }
 
-void handleGetRainbow(AsyncWebServerRequest *request) {
-    // TODO return current rainbow speed
-}
-
-void handlePostRainbow(AsyncWebServerRequest *request) {
-    // TODO parse json in request for rainbow speed information
-    effect = Rainbow;
-    request->redirect("/");
-}
-
-void handleOff(AsyncWebServerRequest *request) {
-    effect = Off;
-    request->redirect("/");
-}
-
-void handleGetColor(AsyncWebServerRequest *request) {
-    // TODO return current color
-}
-
-void handlePostColor(AsyncWebServerRequest *request) {
-    // TODO parse json in request for color information
-    effect = SingleColor;
-    color = Adafruit_NeoPixel::Color(255, 255, 255);
-    request->redirect("/");
-}
-
-void handleGetState(AsyncWebServerRequest *request) {
-    DynamicJsonDocument json(1024);
-    json["effect"] = effect;
-    // TODO parse color to hex
-    json["color"] = color;
-    json["speed"] = speed;
-
-    String jsonString = "";
+void sendJson(AsyncWebServerRequest *request, const DynamicJsonDocument &json, const String &
+errorMsg) {
+    String jsonString;
     auto bytesWritten = serializeJson(json, jsonString);
     if (bytesWritten > 0) {
-        request->send(200, "text/json", jsonString);
+        request->send(200, "application/json", jsonString);
     } else {
-        request->send(500, "text/plain", "Error creating internal state");
+        request->send(500, "text/plain", errorMsg);
     }
+}
+
+void onGetRainbow(AsyncWebServerRequest *request) {
+    DynamicJsonDocument json(64);
+    json["speed"] = speed;
+    sendJson(request, json, "Error creating get rainbow response");
+}
+
+void onPostRainbow(AsyncWebServerRequest *request) {
+    effect = Rainbow;
+    if (request->_tempObject == nullptr) {
+        onGetRainbow(request);
+        return;
+    }
+    DynamicJsonDocument json(64);
+    auto error = deserializeJson(json, (uint8_t *) (request->_tempObject));
+    if (error) {
+        request->send(500, "text/plain", error.c_str());
+        return;
+    }
+    speed = json["speed"];
+    onGetRainbow(request);
+}
+
+void onPostOff(AsyncWebServerRequest *request) {
+    effect = Off;
+    request->send(200, "text/plain", "");
+}
+
+void onGetColor(AsyncWebServerRequest *request) {
+    DynamicJsonDocument json(1024);
+    json["color"]["red"] = red;
+    json["color"]["green"] = green;
+    json["color"]["blue"] = blue;
+    sendJson(request, json, "Error creating get color response");
+}
+
+
+void onPostColor(AsyncWebServerRequest *request) {
+    effect = SingleColor;
+    if (request->_tempObject == nullptr) {
+        onGetColor(request);
+        return;
+    }
+    DynamicJsonDocument json(1024);
+    auto error = deserializeJson(json, (uint8_t *) (request->_tempObject));
+    if (error) {
+        request->send(500, "text/plain", error.c_str());
+        return;
+    }
+    red = json["color"]["red"];
+    green = json["color"]["green"];
+    blue = json["color"]["blue"];
+    onGetColor(request);
+}
+
+void onGetState(AsyncWebServerRequest *request) {
+    DynamicJsonDocument json(1024);
+    json["effect"] = effectToString(effect);
+    json["color"]["red"] = red;
+    json["color"]["green"] = green;
+    json["color"]["blue"] = blue;
+    json["speed"] = speed;
+
+    sendJson(request, json, "Error creating internal state");
 }
 // endregion
 
@@ -115,11 +172,6 @@ void setup() {
     leds.begin();
 
     SPIFFS.begin(true);
-    auto file = SPIFFS.open("/index.html");
-    while (file.available()) {
-        indexHtml += char(file.read());
-    }
-    file.close();
 
     Serial.begin(115200);
     Serial.print("Connecting to...");
@@ -134,7 +186,9 @@ void setup() {
     Serial.print("Got IP: ");
     Serial.println(WiFi.localIP());
 
-    server.on("/", HTTP_GET, serveSite);
+    server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/index.html", "text/html");
+    });
     server.on("/normalize.css", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/normalize.css", "text/css");
     });
@@ -153,12 +207,12 @@ void setup() {
     server.on("/favicon.ico", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/favicon.ico", "image/x-icon");
     });
-    server.on("/off", HTTP_POST, handleOff);
-    server.on("/rainbow", HTTP_GET, handleGetRainbow);
-    server.on("/rainbow", HTTP_POST, handlePostRainbow);
-    server.on("/color", HTTP_GET, handleGetColor);
-    server.on("/color", HTTP_POST, handlePostColor);
-    server.on("/state", HTTP_GET, handleGetState);
+    server.on("/off", HTTP_POST, onPostOff);
+    server.on("/rainbow", HTTP_GET, onGetRainbow);
+    server.on("/rainbow", HTTP_POST, onPostRainbow, nullptr, onJsonBody);
+    server.on("/color", HTTP_GET, onGetColor);
+    server.on("/color", HTTP_POST, onPostColor, nullptr, onJsonBody);
+    server.on("/state", HTTP_GET, onGetState);
     server.begin();
 }
 

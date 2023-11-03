@@ -16,7 +16,7 @@
         </div>
         <div class="one-half column">
             <input id="rainbow-speed-slider" class="u-full-width" type="range" min="1" max="100" value="50"
-                   oninput="onRainbowClick()">
+                   onmouseup="onRainbowClick()">
         </div>
         <label for="rainbow-speed-slider"></label>
     </div>
@@ -25,14 +25,14 @@
             <button type="button" class="u-full-width" onclick="onColorClick()">Color</button>
         </div>
         <div class="one-half column">
-            <input type="color" class="u-full-width" id="color-selector" name="head" value="#ffffff"
+            <input type="color" class="u-full-width" id="color-selector" name="head" value="#232323"
                    oninput="onColorClick()"/>
         </div>
         <label for="color-selector"></label>
     </div>
     <div class="row">
         <div class="twelve columns">
-            <button type="button" class="u-full-width" id="off-button" onclick="onOffClick()">Off</button>
+            <button type="button" class="u-full-width" onclick="onOffClick()">Off</button>
         </div>
     </div>
 </div>

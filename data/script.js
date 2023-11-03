@@ -4,31 +4,67 @@ const rainbowSpeedSlider = document.getElementById("rainbow-speed-slider");
 window.addEventListener("load", setState, false);
 
 function setState() {
-    // TODO set current color value in color picker
-    // TODO set current rainbow speed in rainbow speed slider
-    // TODO set values of slider and color picker in UI
-    // TODO set button availability depending on the current effect
-    colorSelector.value = "#008080";
-    rainbowSpeedSlider.value = 66;
     fetch("/state")
         .then(response => response.json())
-        .then(data => console.log(data))
-        .catch(error => console.error("Error: ", error));
+        .then(function (data) {
+            setSpeedState(data["speed"]);
+            setColorState(data["color"]);
+        })
+        .catch(error => console.error(error));
+}
+
+function setSpeedState(speed) {
+    rainbowSpeedSlider.value = speed;
+}
+
+
+const rgbToHex = (r, g, b) => "#" + ((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1).toUpperCase();
+
+const hexToRgb = hex => {
+    // Remove the '#' character from the hexadecimal color code if it exists.
+    hex = hex.replace('#', '');
+
+    // Split the hexadecimal color code into three parts.
+    let r = hex.substring(0, 2);
+    let g = hex.substring(2, 4);
+    let b = hex.substring(4, 6);
+
+    // Convert each part from hexadecimal to decimal.
+    r = parseInt(r, 16);
+    g = parseInt(g, 16);
+    b = parseInt(b, 16);
+
+    return {color: {red: r, green: g, blue: b}};
+};
+
+function setColorState(color) {
+    colorSelector.value = rgbToHex(color["red"], color["green"], color["blue"]);
 }
 
 function onColorClick() {
-    // TODO send POST request to /color with color information
-    console.log("Color clicked");
-    const color = colorSelector.value;
-    console.log(color);
+    const color = hexToRgb(colorSelector.value);
+    fetch("/color", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(color)
+    })
+        .then(response => response.json())
+        .then(data => setColorState(data["color"]))
+        .catch(error => console.error(error));
 }
 
 function onRainbowClick() {
-    // TODO send POST request to /rainbow with rainbow speed information
-    console.log("Rainbow clicked");
+    const speed = {speed: rainbowSpeedSlider.value};
+    fetch("/rainbow", {
+        method: "POST", headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(speed)
+    })
+        .then(response => response.json())
+        .then(data => setSpeedState(data["speed"]))
+        .catch(error => console.error(error));
 }
 
 function onOffClick() {
-    // TODO send POST request to /off
-    console.log("Off clicked");
+    fetch("/off", {method: "POST"})
+        .catch(error => console.error(error));
+
 }
