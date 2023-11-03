@@ -15,8 +15,9 @@
             <button type="button" class="u-full-width" onclick="onRainbowClick()">Rainbow</button>
         </div>
         <div class="one-half column">
+            <!--suppress HtmlUnknownAttribute -->
             <input id="rainbow-speed-slider" class="u-full-width" type="range" min="1" max="100" value="50"
-                   onmouseup="onRainbowClick()">
+                   onmouseup="onRainbowClick()" ontouchend="onRainbowClick()">
         </div>
         <label for="rainbow-speed-slider"></label>
     </div>
