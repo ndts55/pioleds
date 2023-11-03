@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <Adafruit_NeoPixel.h>
 #include <ESPAsyncWebServer.h>
 #include <WiFi.h>
@@ -27,10 +28,9 @@ void off() {
 // endregion
 // region Rainbow
 uint16_t hue = 0;
-uint16_t hue_step = 10;
+uint16_t speed = 10;
 uint32_t rainbow_delay = 5;
 
-// TODO add variable update speed for rainbow effect
 void rainbow() {
     uint32_t color = Adafruit_NeoPixel::ColorHSV(hue, UINT8_MAX, UINT8_MAX);
     for (int i = 0; i < leds.numPixels(); ++i) {
@@ -38,7 +38,8 @@ void rainbow() {
     }
     leds.show();
     delay(rainbow_delay);
-    hue = (hue + hue_step) % UINT16_MAX;
+    // TODO properly incorporate speed variable in next hue calculation
+    hue = (hue + speed) % UINT16_MAX;
 }
 // endregion
 
@@ -55,35 +56,10 @@ void singleColor() {
 // endregion
 
 // region HTML
-String constructHtml() {
-    auto file = SPIFFS.open("/index.html");
-    String html("");
-    while (file.available()) {
-        html += char(file.read());
-    }
-    file.close();
-    auto offStatus = "off";
-    auto rainbowStatus = "off";
-    auto singleStatus = "off";
-    switch (effect) {
-        case Off:
-            offStatus = "on";
-            break;
-        case Rainbow:
-            rainbowStatus = "on";
-            break;
-        case SingleColor:
-            singleStatus = "on";
-            break;
-    }
-    html.replace("{{rainbow-class}}", rainbowStatus);
-    html.replace("{{white-class}}", singleStatus);
-    html.replace("{{off-class}}", offStatus);
-    return html;
-}
+String indexHtml("");
 
 void serveSite(AsyncWebServerRequest *request) {
-    request->send(200, "text/html", constructHtml());
+    request->send(200, "text/html", indexHtml);
 }
 
 void handleGetRainbow(AsyncWebServerRequest *request) {
@@ -91,6 +67,7 @@ void handleGetRainbow(AsyncWebServerRequest *request) {
 }
 
 void handlePostRainbow(AsyncWebServerRequest *request) {
+    // TODO parse json in request for rainbow speed information
     effect = Rainbow;
     request->redirect("/");
 }
@@ -105,14 +82,26 @@ void handleGetColor(AsyncWebServerRequest *request) {
 }
 
 void handlePostColor(AsyncWebServerRequest *request) {
-    // TODO set current color from payload
+    // TODO parse json in request for color information
     effect = SingleColor;
     color = Adafruit_NeoPixel::Color(255, 255, 255);
     request->redirect("/");
 }
 
 void handleGetState(AsyncWebServerRequest *request) {
-    // TODO return the current state information as JSON
+    DynamicJsonDocument json(1024);
+    json["effect"] = effect;
+    // TODO parse color to hex
+    json["color"] = color;
+    json["speed"] = speed;
+
+    String jsonString = "";
+    auto bytesWritten = serializeJson(json, jsonString);
+    if (bytesWritten > 0) {
+        request->send(200, "text/json", jsonString);
+    } else {
+        request->send(500, "text/plain", "Error creating internal state");
+    }
 }
 // endregion
 
@@ -126,6 +115,11 @@ void setup() {
     leds.begin();
 
     SPIFFS.begin(true);
+    auto file = SPIFFS.open("/index.html");
+    while (file.available()) {
+        indexHtml += char(file.read());
+    }
+    file.close();
 
     Serial.begin(115200);
     Serial.print("Connecting to...");
@@ -149,6 +143,9 @@ void setup() {
     });
     server.on("/style.css", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/style.css", "text/css");
+    });
+    server.on("/script.js", HTTP_GET, [](AsyncWebServerRequest *request) {
+        request->send(SPIFFS, "/script.js", "application/javascript");
     });
     server.on("/index", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/index.html", "text/html");
