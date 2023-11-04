@@ -6,7 +6,7 @@
 #include <SPIFFS.h>
 #include "credentials.h"
 
-#define PIN_LEDS 16
+#define PIN_LEDS 13
 #define NUM_PIXELS 60
 
 // region State
