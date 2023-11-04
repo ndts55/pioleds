@@ -10,30 +10,75 @@
 <body>
 
 <div class="container">
+    <!-- General Title -->
+    <div class="row title-row">
+        <div class="twelve columns"><h2>LED Control 🤖</h2></div>
+    </div>
+    <div class="row subtitle-row">
+        <div class="twelve columns"><h4>Color 🎨</h4></div>
+    </div>
     <div class="row">
-        <div class="one-half column">
-            <button type="button" class="u-full-width" onclick="onRainbowClick()">Rainbow</button>
+        <!-- Brightness Slider Label -->
+        <div class="one-third column">
+            <label for="brightness-slider">Brightness</label>
         </div>
-        <div class="one-half column">
+        <!--  Brightness Slider  -->
+        <div class="two-thirds column">
+            <!--suppress HtmlUnknownAttribute -->
+            <input id="brightness-slider" class="u-full-width" type="range" min="60" max="255" value="200"
+                   onmouseup="onBrightnessClick()" ontouchend="onBrightnessClick()">
+        </div>
+    </div>
+    <div class="row">
+        <!-- Color Picker -->
+        <div class="one-third column">
+            <label for="color-selector">Color</label>
+        </div>
+        <div class="two-thirds column">
+            <input type="color" class="u-full-width" id="color-selector" name="head" value="#88aaff"
+                   oninput="onColorClick()"/>
+        </div>
+    </div>
+    <div class="row">
+        <div class="twelve columns">
+            <button type="button" class="u-full-width" onclick="onColorClick()">On</button>
+        </div>
+    </div>
+    <div class="row">
+        <!--  Off Button  -->
+        <div class="twelve columns">
+            <button type="button" class="u-full-width" onclick="onOffClick()">Off</button>
+        </div>
+    </div>
+
+    <!--  Rainbow Subtitle  -->
+    <div class="row subtitle-row">
+        <div class="twelve columns"><h4>Rainbow 🌈</h4></div>
+    </div>
+    <div class="row">
+        <!--  Rainbow Speed Slider  -->
+        <div class="one-third column">
+            <label for="rainbow-speed-slider">Speed</label>
+        </div>
+        <div class="two-thirds column">
             <!--suppress HtmlUnknownAttribute -->
             <input id="rainbow-speed-slider" class="u-full-width" type="range" min="1" max="100" value="50"
                    onmouseup="onRainbowClick()" ontouchend="onRainbowClick()">
         </div>
-        <label for="rainbow-speed-slider"></label>
     </div>
     <div class="row">
-        <div class="one-half column">
-            <button type="button" class="u-full-width" onclick="onColorClick()">Color</button>
+        <!--  Rainbow Button  -->
+        <div class="twelve columns">
+            <button type="button" class="u-full-width" onclick="onRainbowClick()">On</button>
         </div>
-        <div class="one-half column">
-            <input type="color" class="u-full-width" id="color-selector" name="head" value="#232323"
-                   oninput="onColorClick()"/>
-        </div>
-        <label for="color-selector"></label>
+    </div>
+    <!--  Christmas Subtitle  -->
+    <div class="row subtitle-row">
+        <div class="twelve columns"><h4>Christmas 🎄</h4></div>
     </div>
     <div class="row">
         <div class="twelve columns">
-            <button type="button" class="u-full-width" onclick="onOffClick()">Off</button>
+            <button type="button" class="u-full-width" onclick="onChristmasClick()">On</button>
         </div>
     </div>
 </div>

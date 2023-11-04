@@ -10,8 +10,10 @@
 #define NUM_PIXELS 60
 
 // region State
+const uint8_t BRIGHTNESS_MIN = 60;
+uint8_t brightness = 200;
 enum Effect {
-    Off, SingleColor, Rainbow
+    Off, SingleColor, Rainbow, Christmas
 };
 Effect effect = Off;
 
@@ -23,6 +25,8 @@ String effectToString(Effect e) {
             return "single-color";
         case Rainbow:
             return "rainbow";
+        case Christmas:
+            return "christmas";
         default:
             return "";
     }
@@ -39,20 +43,20 @@ void off() {
 }
 
 // endregion
+
 // region Rainbow
-uint16_t hue = 0;
-uint16_t speed = 10;
-uint32_t rainbow_delay = 5;
+uint16_t rainbowHue = 0;
+uint16_t rainbowSpeed = 10;
+const uint32_t rainbowDelay = 5;
 
 void rainbow() {
-    uint32_t color = Adafruit_NeoPixel::ColorHSV(hue, UINT8_MAX, UINT8_MAX);
+    uint32_t color = Adafruit_NeoPixel::ColorHSV(rainbowHue, UINT8_MAX, UINT8_MAX);
     for (int i = 0; i < leds.numPixels(); ++i) {
         leds.setPixelColor(i, color);
     }
     leds.show();
-    delay(rainbow_delay);
-    // TODO properly incorporate speed variable in next hue calculation
-    hue = (hue + speed) % UINT16_MAX;
+    delay(rainbowDelay);
+    rainbowHue = (rainbowHue + rainbowSpeed) % UINT16_MAX;
 }
 // endregion
 
@@ -66,6 +70,24 @@ void singleColor() {
         leds.setPixelColor(i, red, green, blue);
     }
     leds.show();
+}
+// endregion
+
+// region Christmas
+const uint16_t christmasDelay = 500;
+bool christmasSwitch = false;
+
+void christmas() {
+    for (int i = 0; i < leds.numPixels(); ++i) {
+        if (i % 2 == christmasSwitch) {
+            leds.setPixelColor(i, 255, 0, 0);
+        } else {
+            leds.setPixelColor(i, 0, 255, 0);
+        }
+    }
+    leds.show();
+    delay(christmasDelay);
+    christmasSwitch = !christmasSwitch;
 }
 // endregion
 // endregion
@@ -98,7 +120,7 @@ errorMsg) {
 
 void onGetRainbow(AsyncWebServerRequest *request) {
     DynamicJsonDocument json(64);
-    json["speed"] = speed;
+    json["rainbowSpeed"] = rainbowSpeed;
     sendJson(request, json, "Error creating get rainbow response");
 }
 
@@ -114,7 +136,7 @@ void onPostRainbow(AsyncWebServerRequest *request) {
         request->send(500, "text/plain", error.c_str());
         return;
     }
-    speed = json["speed"];
+    rainbowSpeed = json["rainbowSpeed"];
     onGetRainbow(request);
 }
 
@@ -156,9 +178,36 @@ void onGetState(AsyncWebServerRequest *request) {
     json["color"]["red"] = red;
     json["color"]["green"] = green;
     json["color"]["blue"] = blue;
-    json["speed"] = speed;
+    json["rainbowSpeed"] = rainbowSpeed;
 
     sendJson(request, json, "Error creating internal state");
+}
+
+void onGetBrightness(AsyncWebServerRequest *request) {
+    DynamicJsonDocument json(64);
+    json["brightness"] = brightness;
+    sendJson(request, json, "Error creating get brightness response");
+}
+
+void onPostBrightness(AsyncWebServerRequest *request) {
+    if (request->_tempObject == nullptr) {
+        onGetColor(request);
+        return;
+    }
+    DynamicJsonDocument json(1024);
+    auto error = deserializeJson(json, (uint8_t *) (request->_tempObject));
+    if (error) {
+        request->send(500, "text/plain", error.c_str());
+        return;
+    }
+    brightness = json["brightness"];
+    if (brightness < BRIGHTNESS_MIN) { brightness = BRIGHTNESS_MIN; }
+    onGetBrightness(request);
+}
+
+void onPostChristmas(AsyncWebServerRequest *request) {
+    effect = Christmas;
+    request->send(200, "text/plain", "");
 }
 // endregion
 
@@ -166,6 +215,9 @@ void onGetState(AsyncWebServerRequest *request) {
 #pragma clang diagnostic push
 #pragma ide diagnostic ignored "OCUnusedGlobalDeclarationInspection"
 
+const IPAddress localIp(192, 168, 0, 91);
+const IPAddress gateway(192, 168, 0, 1);
+const IPAddress subnet(255, 255, 255, 0);
 AsyncWebServer server(80);
 
 void setup() {
@@ -173,18 +225,9 @@ void setup() {
 
     SPIFFS.begin(true);
 
-    Serial.begin(115200);
-    Serial.print("Connecting to...");
-    Serial.print(ssid);
+    WiFi.config(localIp, gateway, subnet);
     WiFi.begin(ssid, password);
-    while (WiFiClass::status() != WL_CONNECTED) {
-        delay(1000);
-        Serial.print(".");
-    }
-    Serial.print("");
-    Serial.print("Connected!");
-    Serial.print("Got IP: ");
-    Serial.println(WiFi.localIP());
+    while (WiFiClass::status() != WL_CONNECTED) { delay(500); }
 
     server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
         request->send(SPIFFS, "/index.html", "text/html");
@@ -213,12 +256,16 @@ void setup() {
     server.on("/color", HTTP_GET, onGetColor);
     server.on("/color", HTTP_POST, onPostColor, nullptr, onJsonBody);
     server.on("/state", HTTP_GET, onGetState);
+    server.on("/brightness", HTTP_GET, onGetBrightness);
+    server.on("/brightness", HTTP_POST, onPostBrightness, nullptr, onJsonBody);
+    server.on("/christmas", HTTP_POST, onPostChristmas);
     server.begin();
 }
 
 #pragma clang diagnostic pop
 
 void loop() {
+    if (leds.getBrightness() != brightness) { leds.setBrightness(brightness); }
     switch (effect) {
         case Off:
             off();
@@ -228,6 +275,9 @@ void loop() {
             break;
         case SingleColor:
             singleColor();
+            break;
+        case Christmas:
+            christmas();
             break;
         default:
             break;

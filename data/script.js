@@ -1,5 +1,6 @@
 const colorSelector = document.getElementById("color-selector");
 const rainbowSpeedSlider = document.getElementById("rainbow-speed-slider");
+const brightnessSlider = document.getElementById("brightness-slider");
 
 window.addEventListener("load", setState, false);
 
@@ -34,18 +35,21 @@ const hexToRgb = hex => {
     g = parseInt(g, 16);
     b = parseInt(b, 16);
 
-    return {color: {red: r, green: g, blue: b}};
+    return {red: r, green: g, blue: b};
 };
 
 function setColorState(color) {
     colorSelector.value = rgbToHex(color["red"], color["green"], color["blue"]);
 }
 
+function setBrightnessState(brightness) {
+    brightnessSlider.value = brightness;
+}
+
 function onColorClick() {
-    const color = hexToRgb(colorSelector.value);
     fetch("/color", {
         method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(color)
+        body: JSON.stringify({color: hexToRgb(colorSelector.value)})
     })
         .then(response => response.json())
         .then(data => setColorState(data["color"]))
@@ -53,13 +57,12 @@ function onColorClick() {
 }
 
 function onRainbowClick() {
-    const speed = {speed: rainbowSpeedSlider.value};
     fetch("/rainbow", {
         method: "POST", headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(speed)
+        body: JSON.stringify({rainbowSpeed: rainbowSpeedSlider.value})
     })
         .then(response => response.json())
-        .then(data => setSpeedState(data["speed"]))
+        .then(data => setSpeedState(data["rainbowSpeed"]))
         .catch(error => console.error(error));
 }
 
@@ -67,4 +70,20 @@ function onOffClick() {
     fetch("/off", {method: "POST"})
         .catch(error => console.error(error));
 
+}
+
+function onBrightnessClick() {
+    fetch("/brightness", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({brightness: brightnessSlider.value})
+    })
+        .then(r => r.json())
+        .then(data => setBrightnessState(data["brightness"]))
+        .catch(error => console.error(error));
+}
+
+function onChristmasClick() {
+    fetch("/christmas", {method: "POST"})
+        .catch(error => console.error(error));
 }
