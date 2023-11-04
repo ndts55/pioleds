@@ -118,16 +118,22 @@ errorMsg) {
     }
 }
 
-void onGetRainbow(AsyncWebServerRequest *request) {
-    DynamicJsonDocument json(64);
+void onGetState(AsyncWebServerRequest *request) {
+    DynamicJsonDocument json(1024);
+    json["effect"] = effectToString(effect);
+    json["color"]["red"] = red;
+    json["color"]["green"] = green;
+    json["color"]["blue"] = blue;
     json["rainbowSpeed"] = rainbowSpeed;
-    sendJson(request, json, "Error creating get rainbow response");
+    json["brightness"] = brightness;
+
+    sendJson(request, json, "Error creating internal state");
 }
 
 void onPostRainbow(AsyncWebServerRequest *request) {
     effect = Rainbow;
     if (request->_tempObject == nullptr) {
-        onGetRainbow(request);
+        onGetState(request);
         return;
     }
     DynamicJsonDocument json(64);
@@ -137,27 +143,18 @@ void onPostRainbow(AsyncWebServerRequest *request) {
         return;
     }
     rainbowSpeed = json["rainbowSpeed"];
-    onGetRainbow(request);
+    onGetState(request);
 }
 
 void onPostOff(AsyncWebServerRequest *request) {
     effect = Off;
-    request->send(200, "text/plain", "");
+    onGetState(request);
 }
-
-void onGetColor(AsyncWebServerRequest *request) {
-    DynamicJsonDocument json(1024);
-    json["color"]["red"] = red;
-    json["color"]["green"] = green;
-    json["color"]["blue"] = blue;
-    sendJson(request, json, "Error creating get color response");
-}
-
 
 void onPostColor(AsyncWebServerRequest *request) {
     effect = SingleColor;
     if (request->_tempObject == nullptr) {
-        onGetColor(request);
+        onGetState(request);
         return;
     }
     DynamicJsonDocument json(1024);
@@ -169,29 +166,12 @@ void onPostColor(AsyncWebServerRequest *request) {
     red = json["color"]["red"];
     green = json["color"]["green"];
     blue = json["color"]["blue"];
-    onGetColor(request);
-}
-
-void onGetState(AsyncWebServerRequest *request) {
-    DynamicJsonDocument json(1024);
-    json["effect"] = effectToString(effect);
-    json["color"]["red"] = red;
-    json["color"]["green"] = green;
-    json["color"]["blue"] = blue;
-    json["rainbowSpeed"] = rainbowSpeed;
-
-    sendJson(request, json, "Error creating internal state");
-}
-
-void onGetBrightness(AsyncWebServerRequest *request) {
-    DynamicJsonDocument json(64);
-    json["brightness"] = brightness;
-    sendJson(request, json, "Error creating get brightness response");
+    onGetState(request);
 }
 
 void onPostBrightness(AsyncWebServerRequest *request) {
     if (request->_tempObject == nullptr) {
-        onGetColor(request);
+        onGetState(request);
         return;
     }
     DynamicJsonDocument json(1024);
@@ -202,12 +182,12 @@ void onPostBrightness(AsyncWebServerRequest *request) {
     }
     brightness = json["brightness"];
     if (brightness < BRIGHTNESS_MIN) { brightness = BRIGHTNESS_MIN; }
-    onGetBrightness(request);
+    onGetState(request);
 }
 
 void onPostChristmas(AsyncWebServerRequest *request) {
     effect = Christmas;
-    request->send(200, "text/plain", "");
+    onGetState(request);
 }
 // endregion
 
@@ -251,12 +231,9 @@ void setup() {
         request->send(SPIFFS, "/favicon.ico", "image/x-icon");
     });
     server.on("/off", HTTP_POST, onPostOff);
-    server.on("/rainbow", HTTP_GET, onGetRainbow);
     server.on("/rainbow", HTTP_POST, onPostRainbow, nullptr, onJsonBody);
-    server.on("/color", HTTP_GET, onGetColor);
     server.on("/color", HTTP_POST, onPostColor, nullptr, onJsonBody);
     server.on("/state", HTTP_GET, onGetState);
-    server.on("/brightness", HTTP_GET, onGetBrightness);
     server.on("/brightness", HTTP_POST, onPostBrightness, nullptr, onJsonBody);
     server.on("/christmas", HTTP_POST, onPostChristmas);
     server.begin();
